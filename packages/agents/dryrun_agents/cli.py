@@ -14,13 +14,8 @@ import argparse
 import sys
 
 from dryrun_agents.shared.cascade import run_cascade
-from dryrun_agents.shared.demo import (
-    DEMO_BUDGET,
-    DEMO_CANDIDATES,
-    DEMO_GOAL,
-    DEMO_SEED,
-)
-from dryrun_providers import get_llm_provider, get_mode
+from dryrun_agents.shared.inputs import resolve_inputs
+from dryrun_providers import get_mode
 
 
 def _build_parser() -> argparse.ArgumentParser:
@@ -36,28 +31,6 @@ def _build_parser() -> argparse.ArgumentParser:
     p.add_argument("--candidates", type=int, default=None, help="Number of candidate variants")
     p.add_argument("--quiet", "-q", action="store_true", help="Suppress the stderr summary")
     return p
-
-
-def _resolve_inputs(args: argparse.Namespace) -> tuple[str, str, float, int]:
-    seed, goal, budget, count = args.seed, args.goal, args.budget, args.candidates
-
-    if args.natural:
-        parsed = get_llm_provider().parse_request(args.natural)
-        seed = seed or parsed.get("seed_sequence")
-        goal = goal or parsed.get("goal")
-        budget = budget if budget is not None else parsed.get("budget")
-        count = count or parsed.get("candidate_count")
-
-    if args.demo or seed is None:
-        seed = seed or DEMO_SEED
-        goal = goal or DEMO_GOAL
-        budget = budget if budget is not None else DEMO_BUDGET
-        count = count or DEMO_CANDIDATES
-
-    goal = goal or DEMO_GOAL
-    budget = float(budget if budget is not None else DEMO_BUDGET)
-    count = int(count or DEMO_CANDIDATES)
-    return seed, goal, budget, count
 
 
 def _print_summary(report) -> None:
@@ -100,7 +73,13 @@ def _print_summary(report) -> None:
 
 def main(argv: list[str] | None = None) -> int:
     args = _build_parser().parse_args(argv)
-    seed, goal, budget, count = _resolve_inputs(args)
+    seed, goal, budget, count = resolve_inputs(
+        natural=args.natural,
+        seed=args.seed,
+        goal=args.goal,
+        budget=args.budget,
+        candidates=args.candidates,
+    )
 
     if not args.quiet:
         print(f"Running DryRun cascade (mode={get_mode()})...", file=sys.stderr)

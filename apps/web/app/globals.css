@@ -1,0 +1,20 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: light;
+}
+
+html,
+body {
+  background: #fafafa;
+  color: #111827;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+/* Mol* injects its own UI chrome we don't want; keep just the canvas. */
+.msp-plugin .msp-layout-expanded {
+  position: absolute;
+}

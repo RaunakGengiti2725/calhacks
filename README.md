@@ -47,11 +47,21 @@ The entire application runs, demos, and passes tests in mock mode with zero keys
 make install     # install Python deps (uv); auto-fetches Python 3.11
 make test        # run the core + provider test suite (no network)
 make demo        # run the full cascade end to end, print the JSON report
-make web         # start the Next.js frontend (the demo centerpiece)
+
+# the graphical product (two terminals):
+make api         # FastAPI gateway on :8000 (drives the cascade)
+make web         # Next.js frontend on :3000 (the demo centerpiece)
 ```
 
-> Requires [`uv`](https://docs.astral.sh/uv/) and Node 18+. `make install` does
-> not need any credentials.
+> Requires [`uv`](https://docs.astral.sh/uv/) and Node 18+. Nothing here needs any
+> credentials. The frontend ships a bundled mock report, so `make web` renders the
+> full report even if the API isn't running — it just falls back to the demo result.
+
+**The 3D structure viewer** defaults to a dependency-free, WebGL-optional backbone
+renderer (rotating CA trace colored by the AlphaFold pLDDT scale, mutations marked)
+so the demo never shows a blank viewport. Full Mol* molecular graphics is wired in
+as an optional enhancement — set `NEXT_PUBLIC_USE_MOLSTAR=1` to enable it; it only
+takes over once it has actually painted a structure.
 
 ---
 
@@ -120,6 +130,8 @@ keys only if you want `DRYRUN_MODE=live`.
 - [x] Phase 0 — scaffold & contracts (models, provider ABCs, factory, clean install)
 - [x] Phase 1 — core domain logic, fully tested (39 tests, no network)
 - [x] Phase 2 — mock providers + in-process cascade CLI (`make demo`)
-- [ ] Phase 3 — FastAPI gateway + Next.js frontend (mock mode)
+- [x] Phase 3 — FastAPI gateway + Next.js frontend (mock mode): summary metrics,
+      cost-comparison chart, screening funnel, 3D structure + pLDDT confidence
+      track, sequence-space scatter, candidate table
 - [ ] Phase 4 — cascade stages as uAgents (Chat Protocol)
 - [ ] Phase 5 — live providers, Agentverse registration & discovery
