@@ -217,15 +217,27 @@ class StructurePayload(BaseModel):
 
 
 class ReportSummary(BaseModel):
-    """The headline metric row."""
+    """The headline metric row.
+
+    Two distinct, honestly-named quantities:
+      * expected_distinct_successes — diversity-adjusted coverage of distinct
+        functional approaches; bounded by the number of distinct approaches in the
+        pool (so it is <= designs_selected, never an inflated count). This is the
+        hero metric where DryRun beats naive.
+      * expected_constructs — raw sum of p_i over the selection (expected number of
+        constructs that express/fold well, <= designs_selected). Naive often wins
+        THIS one while losing on diversity — that inversion is the whole point.
+    """
 
     designs_selected: int
     designs_total: int
     spend: float
     budget: float
-    expected_successes: float
+    expected_distinct_successes: float
+    naive_expected_distinct_successes: float
+    expected_constructs: float
+    naive_expected_constructs: float
     cost_per_success: float
-    naive_expected_successes: float
     uplift_ratio: float  # optimized / naive expected distinct successes
 
 

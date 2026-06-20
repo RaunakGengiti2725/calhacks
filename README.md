@@ -118,8 +118,8 @@ keys only if you want `DRYRUN_MODE=live`.
 ## Build status
 
 - [x] Phase 0 — scaffold & contracts (models, provider ABCs, factory, clean install)
-- [ ] Phase 1 — core domain logic, fully tested
-- [ ] Phase 2 — mock providers + in-process cascade CLI (`make demo`)
+- [x] Phase 1 — core domain logic, fully tested (39 tests, no network)
+- [x] Phase 2 — mock providers + in-process cascade CLI (`make demo`)
 - [ ] Phase 3 — FastAPI gateway + Next.js frontend (mock mode)
 - [ ] Phase 4 — cascade stages as uAgents (Chat Protocol)
 - [ ] Phase 5 — live providers, Agentverse registration & discovery

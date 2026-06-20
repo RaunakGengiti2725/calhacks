@@ -44,9 +44,14 @@ packages = [
     "packages/agents/dryrun_agents",
 ]
 
+# Ensure the bundled sample structure ships in wheels too (editable installs read
+# it straight from the source tree).
+[tool.hatch.build.targets.wheel.force-include]
+"packages/providers/dryrun_providers/mock/assets/1crn.pdb" = "dryrun_providers/mock/assets/1crn.pdb"
+
 [tool.pytest.ini_options]
 testpaths = ["packages/core/tests", "packages/providers/tests"]
-addopts = "-q"
+addopts = "-q --import-mode=importlib"
 pythonpath = ["."]
 
 [tool.uv]

@@ -22,13 +22,13 @@ test: ## Run the core + provider test suite (no network)
 	uv run pytest
 
 demo: ## Run the full cascade end to end on bundled demo inputs, print JSON report
-	uv run dryrun --demo
+	@uv run dryrun --demo
 
 mock: ## Run the cascade in mock mode
-	DRYRUN_MODE=mock uv run dryrun --demo
+	@DRYRUN_MODE=mock uv run dryrun --demo
 
 live: ## Run the cascade in live mode (falls back to mock on any failure)
-	DRYRUN_MODE=live uv run dryrun --demo
+	@DRYRUN_MODE=live uv run dryrun --demo
 
 api: ## Start the FastAPI gateway the frontend talks to
 	uv run uvicorn apps.api.main:app --reload --host 0.0.0.0 --port $${DRYRUN_API_PORT:-8000}

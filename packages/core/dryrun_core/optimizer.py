@@ -11,8 +11,8 @@ Ranking by p_i and taking the top affordable N (`naive_topn_select`) is the wron
 answer: it piles budget into near-identical high-scoring designs that share hidden
 failure modes and fail together. We want *uncorrelated* successes.
 
-THE OBJECTIVE (submodular coverage)
------------------------------------
+THE OBJECTIVE (weighted submodular coverage)
+--------------------------------------------
 Treat each candidate design as a point ("functional approach") in embedding space.
 Selecting design i and having it succeed (prob p_i) "covers" approach j to degree
 sim(i, j) in [0, 1]. Approach j is achieved if at least one selected design that
@@ -20,16 +20,21 @@ succeeds covers it:
 
     A_j(S) = 1 - prod_{i in S} (1 - p_i * sim(i, j))
 
-The objective is the expected number of *distinct* approaches achieved:
+Each approach j carries an inverse-density weight w_j = 1 / sum_k sim(j, k), so a
+cluster of m near-duplicate candidates (each ~similar to the other m) contributes
+total weight ~1 — it counts as ONE distinct approach, not m. The objective is the
+expected number of *distinct* approaches achieved:
 
-    F(S) = sum_j A_j(S)
+    F(S) = sum_j w_j * A_j(S)
 
-F is monotone and submodular (a sum of probabilistic-coverage terms). Adding a
-design similar to ones already chosen yields diminishing marginal return, because
-the residual (1 - A_j) it can still cover has already been shrunk by its
-neighbors. The marginal gain of adding e to S has a clean closed form:
+This bounds F by the number of distinct approaches in the pool (so a portfolio of
+5 constructs covering 3 distinct clusters scores ~3, never 11), which keeps the
+reported "expected distinct successes" honest. F is monotone and submodular (a
+nonneg-weighted sum of probabilistic-coverage terms). Adding a design similar to
+ones already chosen yields diminishing marginal return. The marginal gain of
+adding e to S has a clean closed form:
 
-    F(S + e) - F(S) = p_e * sum_j (1 - A_j(S)) * sim(e, j)
+    F(S + e) - F(S) = p_e * sum_j w_j * (1 - A_j(S)) * sim(e, j)
 
 so the greedy maintains a per-approach residual r_j = prod_{i in S}(1 - p_i sim_ij)
 and updates it multiplicatively — O(n) per step.
@@ -77,23 +82,52 @@ _EPS = 1e-9
 # ---------------------------------------------------------------------------
 
 
-def _arrays(designs: list[ScoredDesign]) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+def _arrays(
+    designs: list[ScoredDesign],
+) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
     p = np.array([d.success_probability for d in designs], dtype=float)
     cost = np.array([d.cost.total_cost for d in designs], dtype=float)
     emb = np.array([d.embedding for d in designs], dtype=float)
-    sim = similarity_matrix(emb) if len(designs) else np.zeros((0, 0))
-    return p, cost, sim
+    if len(designs):
+        # Center on the pool consensus before measuring similarity. Candidate
+        # designs are variants of one seed and share ~all residues, so their raw
+        # embeddings are nearly collinear (sim ~ 1 everywhere) and the diversity
+        # signal vanishes. Centering removes the shared backbone, so similarity
+        # reflects *how each design deviates from consensus* — designs that mutate
+        # the same region the same way stay similar, different strategies separate.
+        emb = emb - emb.mean(axis=0, keepdims=True)
+        sim = similarity_matrix(emb)
+    else:
+        sim = np.zeros((0, 0))
+    return p, cost, sim, _weights(sim)
 
 
-def coverage_value(selected: list[int], p: np.ndarray, sim: np.ndarray) -> float:
-    """F(S): expected number of distinct functional approaches achieved."""
+def _weights(sim: np.ndarray) -> np.ndarray:
+    """Inverse-density weights w_j = 1 / sum_k sim(j, k) (diagonal=1 so denom >= 1)."""
+    if sim.shape[0] == 0:
+        return np.zeros(0)
+    return 1.0 / sim.sum(axis=1)
+
+
+def coverage_value(
+    selected: list[int],
+    p: np.ndarray,
+    sim: np.ndarray,
+    weights: np.ndarray | None = None,
+) -> float:
+    """F(S): expected number of distinct functional approaches achieved.
+
+    `weights` are the inverse-density weights; if omitted they are derived from
+    `sim` (a pool property), so direct calls stay consistent with the greedy.
+    """
     if not selected:
         return 0.0
+    w = _weights(sim) if weights is None else weights
     n = sim.shape[0]
     residual = np.ones(n)
     for i in selected:
         residual *= 1.0 - p[i] * sim[i]
-    return float(np.sum(1.0 - residual))
+    return float(np.sum(w * (1.0 - residual)))
 
 
 # Above this pool size, full size-3 enumeration is skipped for tractability and
@@ -106,6 +140,7 @@ def _greedy_from_seed(
     p: np.ndarray,
     cost: np.ndarray,
     sim: np.ndarray,
+    weights: np.ndarray,
     budget: float,
 ) -> list[int]:
     """Cost-benefit greedy completion starting from a fixed seed subset.
@@ -128,8 +163,8 @@ def _greedy_from_seed(
         for e in available:
             if cost[e] > budget - spent + _EPS:
                 continue
-            # marginal gain = p_e * sum_j residual_j * sim_ej
-            gain = float(p[e] * np.dot(residual, sim[e]))
+            # marginal gain = p_e * sum_j w_j * residual_j * sim_ej
+            gain = float(p[e] * np.dot(weights * residual, sim[e]))
             if gain <= _EPS:
                 continue
             ratio = gain / cost[e] if cost[e] > _EPS else gain / _EPS
@@ -146,7 +181,7 @@ def _greedy_from_seed(
 
 
 def _budgeted_submodular_select(
-    p: np.ndarray, cost: np.ndarray, sim: np.ndarray, budget: float
+    p: np.ndarray, cost: np.ndarray, sim: np.ndarray, weights: np.ndarray, budget: float
 ) -> list[int]:
     """Budget-constrained submodular maximization via greedy + partial enumeration.
 
@@ -164,8 +199,8 @@ def _budgeted_submodular_select(
         for seed in combinations(range(n), size):
             if float(sum(cost[i] for i in seed)) > budget + _EPS:
                 continue
-            sel = _greedy_from_seed(seed, p, cost, sim, budget)
-            val = coverage_value(sel, p, sim)
+            sel = _greedy_from_seed(seed, p, cost, sim, weights, budget)
+            val = coverage_value(sel, p, sim, weights)
             if val > best_val + 1e-12:
                 best_val = val
                 best_sel = sel
@@ -198,11 +233,12 @@ def _portfolio(
     p: np.ndarray,
     cost: np.ndarray,
     sim: np.ndarray,
+    weights: np.ndarray,
 ) -> Portfolio:
     ids = [designs[i].id for i in selected]
     total = float(sum(cost[i] for i in selected))
     expected = float(sum(p[i] for i in selected))
-    distinct = coverage_value(selected, p, sim)
+    distinct = coverage_value(selected, p, sim, weights)
     cost_per_success = total / expected if expected > _EPS else 0.0
     return Portfolio(
         method=method,
@@ -225,9 +261,9 @@ def submodular_greedy_select(designs: list[ScoredDesign], budget: float) -> Port
     """The DryRun optimizer: budget-constrained, diversity-aware selection."""
     if not designs:
         return _empty_portfolio("submodular", budget)
-    p, cost, sim = _arrays(designs)
-    selected = _budgeted_submodular_select(p, cost, sim, budget)
-    return _portfolio("submodular", designs, selected, budget, p, cost, sim)
+    p, cost, sim, w = _arrays(designs)
+    selected = _budgeted_submodular_select(p, cost, sim, w, budget)
+    return _portfolio("submodular", designs, selected, budget, p, cost, sim, w)
 
 
 def naive_topn_select(designs: list[ScoredDesign], budget: float) -> Portfolio:
@@ -238,7 +274,7 @@ def naive_topn_select(designs: list[ScoredDesign], budget: float) -> Portfolio:
     """
     if not designs:
         return _empty_portfolio("naive_topn", budget)
-    p, cost, sim = _arrays(designs)
+    p, cost, sim, w = _arrays(designs)
     order = sorted(range(len(designs)), key=lambda i: (-p[i], cost[i], i))
     selected: list[int] = []
     spent = 0.0
@@ -246,7 +282,7 @@ def naive_topn_select(designs: list[ScoredDesign], budget: float) -> Portfolio:
         if spent + cost[i] <= budget + _EPS:
             selected.append(i)
             spent += cost[i]
-    return _portfolio("naive_topn", designs, selected, budget, p, cost, sim)
+    return _portfolio("naive_topn", designs, selected, budget, p, cost, sim, w)
 
 
 def _dollars_to_match(designs: list[ScoredDesign], target_distinct: float) -> float | None:
@@ -258,14 +294,14 @@ def _dollars_to_match(designs: list[ScoredDesign], target_distinct: float) -> fl
     """
     if not designs:
         return None
-    p, cost, sim = _arrays(designs)
+    p, cost, sim, w = _arrays(designs)
     order = sorted(range(len(designs)), key=lambda i: (-p[i], cost[i], i))
     selected: list[int] = []
     spent = 0.0
     for i in order:
         selected.append(i)
         spent += float(cost[i])
-        if coverage_value(selected, p, sim) >= target_distinct - _EPS:
+        if coverage_value(selected, p, sim, w) >= target_distinct - _EPS:
             return spent
     return None
 
