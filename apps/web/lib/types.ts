@@ -70,6 +70,9 @@ export interface StructurePayload {
   misfold_flag: boolean;
 }
 
+// Per-stage data provenance: what actually produced each stage's result.
+export type ProviderStatus = "live" | "fallback" | "mock" | "local";
+
 export interface ReportMeta {
   mode: string;
   goal: string | null;
@@ -78,6 +81,8 @@ export interface ReportMeta {
   candidate_count: number;
   budget: number;
   generated_at: string;
+  providers: Record<string, ProviderStatus>;
+  strict: boolean;
 }
 
 export interface Report {

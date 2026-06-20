@@ -242,13 +242,20 @@ class ReportSummary(BaseModel):
 
 
 class ReportMeta(BaseModel):
-    mode: str  # "mock" | "live"
+    mode: str  # "mock" | "live" — the configured DRYRUN_MODE
     goal: Optional[str]
     seed_sequence: str
     seed_length: int
     candidate_count: int
     budget: float
     generated_at: str
+    # Per-stage provenance: which path actually produced each stage's data.
+    # stage -> "live" (real API) | "fallback" (live failed, mock substituted) |
+    #          "mock" (mock mode) | "local" (real in-process algorithm).
+    # This is the honest, per-stage answer to "is this real?" — a silent fallback
+    # is recorded here and surfaced in the UI, never shown as a real API result.
+    providers: dict[str, str] = Field(default_factory=dict)
+    strict: bool = False  # DRYRUN_STRICT — live failures raise instead of falling back
 
 
 class Report(BaseModel):

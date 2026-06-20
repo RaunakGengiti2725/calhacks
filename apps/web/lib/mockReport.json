@@ -931,6 +931,14 @@
     "seed_length": 46,
     "candidate_count": 20,
     "budget": 500.0,
-    "generated_at": "2026-06-20T20:04:31+00:00"
+    "generated_at": "2026-06-20T21:10:39+00:00",
+    "providers": {
+      "generation": "mock",
+      "viability": "mock",
+      "structure": "mock",
+      "cost": "local",
+      "llm": "mock"
+    },
+    "strict": false
   }
 }

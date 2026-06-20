@@ -13,15 +13,33 @@ framework. Provider selection is global via DRYRUN_MODE.
 from __future__ import annotations
 
 import logging
+import os
 
 from dryrun_agents.shared import stages
 from dryrun_core.models import Report
-from dryrun_providers import get_mode
+from dryrun_providers import get_mode, provenance
 
 logger = logging.getLogger("dryrun.cascade")
 
 VIABILITY_THRESHOLD = stages.VIABILITY_THRESHOLD
 DEFAULT_FOLD_CAP = stages.DEFAULT_FOLD_CAP
+
+
+def _resolve_fold_cap(explicit: int | None) -> int:
+    """How many viability survivors to fold.
+
+    The cap exists only because LIVE AlphaFold2 is slow/async; mock folding is
+    instant, so in mock mode we fold all survivors (generous default) and honor
+    DRYRUN_FOLD_CAP (README documents 4) only when live.
+    """
+    if explicit is not None:
+        return explicit
+    if get_mode() != "live":
+        return DEFAULT_FOLD_CAP
+    try:
+        return int(os.getenv("DRYRUN_FOLD_CAP", str(DEFAULT_FOLD_CAP)))
+    except ValueError:
+        return DEFAULT_FOLD_CAP
 
 
 def run_cascade(
@@ -31,10 +49,14 @@ def run_cascade(
     candidate_count: int,
     *,
     viability_threshold: float = VIABILITY_THRESHOLD,
-    fold_cap: int = DEFAULT_FOLD_CAP,
+    fold_cap: int | None = None,
 ) -> Report:
     """Run the full DryRun cascade in process and return the complete Report."""
     seed = seed_sequence.strip().upper()
+    fold_cap = _resolve_fold_cap(fold_cap)
+    # Start a fresh provenance record for this run so each stage can report whether
+    # it ran live or fell back (threaded into the report and shown in the UI).
+    provenance.begin()
     logger.info("Cascade start: mode=%s n=%d budget=%.0f", get_mode(), candidate_count, budget)
 
     # 1. Generate candidate variants.

@@ -26,16 +26,24 @@ _AGENTVERSE_SEARCH = os.getenv(
 
 
 def _search_agentverse(keywords: list[str], api_key: str) -> str | None:
-    """ISOLATED Agentverse keyword search → best-matching agent address (or None)."""
+    """ISOLATED Agentverse keyword search → best-matching agent address (or None).
+
+    Matches the documented POST /v1/search/agents schema (search_text + sort).
+    See https://docs.agentverse.ai/api-reference/search/agents
+    """
     resp = requests.post(
         _AGENTVERSE_SEARCH,
         headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
-        json={"search_text": " ".join(keywords), "limit": 1},
+        json={"search_text": " ".join(keywords), "sort": "relevancy", "direction": "desc"},
         timeout=15,
     )
     resp.raise_for_status()
     body = resp.json()
-    agents = body.get("agents") or body.get("results") or []
+    # The response may be a bare list, or wrapped under agents/results.
+    if isinstance(body, list):
+        agents = body
+    else:
+        agents = body.get("agents") or body.get("results") or []
     if agents:
         first = agents[0]
         return first.get("address") or first.get("agent_address")

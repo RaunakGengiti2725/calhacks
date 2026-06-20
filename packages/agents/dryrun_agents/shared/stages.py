@@ -36,6 +36,8 @@ from dryrun_providers import (
     get_mode,
     get_structure_provider,
     get_viability_provider,
+    is_strict,
+    provenance,
 )
 
 # A normalized viability score below this is filtered before any expensive folding.
@@ -69,11 +71,41 @@ def score_viability(designs: list[Design]) -> dict[str, ViabilityScore]:
     """Sequence Fitness: per-sequence biological-plausibility score (whole pool)."""
     raws = get_viability_provider().score([d.sequence for d in designs])
     norms = _normalize(raws)
-    mode = get_mode()
+    # Reflect what ACTUALLY ran (live / fallback / mock), not just the configured
+    # mode — so a silent fallback is never stamped "live".
+    method = provenance.snapshot().get("viability", {}).get("status") or get_mode()
     return {
-        d.id: ViabilityScore(design_id=d.id, score=ns, raw=rs, method=mode)
+        d.id: ViabilityScore(design_id=d.id, score=ns, raw=rs, method=method)
         for d, rs, ns in zip(designs, raws, norms)
     }
+
+
+# The stages whose provenance the report tracks. `cost` defaults to "local" (a real
+# in-process model, never an external API); the rest default to "mock" when no live
+# provider ran (i.e. mock mode).
+_TRACKED_STAGES = ("generation", "viability", "structure", "cost", "llm")
+
+
+def _provider_provenance() -> dict[str, str]:
+    """Resolve per-stage provenance from this run's record, applying honest defaults.
+
+    A stage that actually ran reports its own status. For an unrecorded stage:
+    `cost` is always the real in-process model ("local"); otherwise in live mode it
+    means live was requested but never ran (missing key / construction failed) — an
+    honest "fallback" — and in mock mode it is simply "mock".
+    """
+    snap = provenance.snapshot()
+    live_mode = get_mode() == "live"
+    out: dict[str, str] = {}
+    for stage in _TRACKED_STAGES:
+        recorded = snap.get(stage, {}).get("status")
+        if recorded:
+            out[stage] = recorded
+        elif stage == "cost":
+            out[stage] = provenance.LOCAL
+        else:
+            out[stage] = provenance.FALLBACK if live_mode else provenance.MOCK
+    return out
 
 
 def viability_survivors(
@@ -265,6 +297,8 @@ def assemble_report(
         candidate_count=candidate_count,
         budget=budget,
         generated_at=datetime.now(timezone.utc).isoformat(timespec="seconds"),
+        providers=_provider_provenance(),
+        strict=is_strict(),
     )
 
     return Report(

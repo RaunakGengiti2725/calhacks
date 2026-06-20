@@ -9,13 +9,13 @@ import type { AnalyzeRequest, Report } from "@/lib/types";
 export default function Home() {
   const [report, setReport] = useState<Report | null>(null);
   const [loading, setLoading] = useState(false);
-  const [live, setLive] = useState(true);
+  const [reachedApi, setReachedApi] = useState(true);
 
   async function run(req: AnalyzeRequest) {
     setLoading(true);
-    const { report, live } = await analyze(req);
+    const { report, reachedApi } = await analyze(req);
     setReport(report);
-    setLive(live);
+    setReachedApi(reachedApi);
     setLoading(false);
   }
 
@@ -46,7 +46,7 @@ export default function Home() {
       </header>
 
       {report ? (
-        <ReportView report={report} live={live} />
+        <ReportView report={report} reachedApi={reachedApi} />
       ) : (
         <InputView onSubmit={run} loading={loading} />
       )}
