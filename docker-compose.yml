@@ -1,0 +1,16 @@
+# DryRun — bring up the API gateway (+ all uAgents in Phase 5).
+# The mock demo does NOT need Docker; this is a convenience for running the full
+# multi-agent stack at once. Fleshed out in Phase 5.
+
+services:
+  api:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+    environment:
+      DRYRUN_MODE: ${DRYRUN_MODE:-mock}
+    ports:
+      - "8000:8000"
+    command: uvicorn apps.api.main:app --host 0.0.0.0 --port 8000
+# Phase 5: one service per uAgent (design_generator, sequence_fitness, fold_risk,
+# synthesis_cost, portfolio_optimizer, reporting, orchestrator), each with mailbox.
