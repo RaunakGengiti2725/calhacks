@@ -11,7 +11,7 @@ from __future__ import annotations
 import logging
 from typing import Optional
 
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse
 from pydantic import BaseModel
@@ -19,7 +19,7 @@ from pydantic import BaseModel
 from dryrun_agents.shared.cascade import run_cascade
 from dryrun_agents.shared.inputs import resolve_inputs
 from dryrun_core.models import Report
-from dryrun_providers import get_mode
+from dryrun_providers import get_mode, is_strict
 
 logging.basicConfig(level=logging.INFO)
 
@@ -65,14 +65,31 @@ def root() -> str:
 
 @app.get("/health")
 def health() -> dict:
-    return {"status": "ok", "mode": get_mode()}
+    return {"status": "ok", "mode": get_mode(), "strict": is_strict()}
+
+
+def _run(seed: str, goal: str, budget: float, count: int) -> Report:
+    """Run the cascade, converting a hard failure into a clean 502.
+
+    In DRYRUN_STRICT mode a live provider failure raises by design (no mock
+    substitution); surface that as a clear error instead of an opaque 500.
+    """
+    try:
+        return run_cascade(seed, goal, budget, count)
+    except Exception as exc:  # noqa: BLE001 — report cleanly to the client
+        logging.exception("cascade failed")
+        raise HTTPException(
+            status_code=502,
+            detail=f"Cascade failed ({exc}). In strict mode this means a live "
+            f"provider was unavailable; check your keys / DRYRUN_MODE.",
+        ) from exc
 
 
 @app.get("/api/demo", response_model=Report)
 def demo() -> Report:
     """Run the bundled demo end to end and return the full report."""
     seed, goal, budget, count = resolve_inputs()
-    return run_cascade(seed, goal, budget, count)
+    return _run(seed, goal, budget, count)
 
 
 @app.post("/api/analyze", response_model=Report)
@@ -85,4 +102,4 @@ def analyze(req: AnalyzeRequest) -> Report:
         budget=req.budget,
         candidates=req.candidates,
     )
-    return run_cascade(seed, goal, budget, count)
+    return _run(seed, goal, budget, count)

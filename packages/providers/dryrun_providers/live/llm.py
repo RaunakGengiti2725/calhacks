@@ -13,10 +13,14 @@ import logging
 import os
 import re
 
+from dryrun_providers import provenance
 from dryrun_providers.base import LLMProvider
+from dryrun_providers.config import is_strict
 from dryrun_providers.mock.llm import MockLLMProvider
 
 logger = logging.getLogger("dryrun.live.llm")
+
+_STAGE = "llm"
 
 _PARSE_SYSTEM = (
     "You extract structured fields from a protein-engineering request. Return ONLY "
@@ -67,20 +71,30 @@ class LiveLLMProvider(LLMProvider):
     def parse_request(self, text: str) -> dict:
         try:
             fields = _extract_json(self._chat(_PARSE_SYSTEM, text))
+            provenance.mark(_STAGE, provenance.LIVE, "asi:one parse_request")
             return {
                 "seed_sequence": fields.get("seed_sequence"),
                 "goal": fields.get("goal"),
                 "budget": fields.get("budget"),
                 "candidate_count": fields.get("candidate_count"),
             }
-        except Exception as exc:  # noqa: BLE001 — graceful fallback
+        except Exception as exc:  # noqa: BLE001 — graceful fallback unless strict
+            if is_strict():
+                raise
             logger.warning("ASI:One parse failed (%s); using mock", exc)
+            provenance.mark(_STAGE, provenance.FALLBACK, str(exc))
             return self._mock.parse_request(text)
 
     def summarize(self, report_facts: dict) -> str:
         try:
             out = self._chat(_SUMMARY_SYSTEM, json.dumps(report_facts), max_tokens=400).strip()
-            return out or self._mock.summarize(report_facts)
-        except Exception as exc:  # noqa: BLE001 — graceful fallback
+            if not out:
+                raise ValueError("empty summary from ASI:One")
+            provenance.mark(_STAGE, provenance.LIVE, "asi:one summarize")
+            return out
+        except Exception as exc:  # noqa: BLE001 — graceful fallback unless strict
+            if is_strict():
+                raise
             logger.warning("ASI:One summarize failed (%s); using mock", exc)
+            provenance.mark(_STAGE, provenance.FALLBACK, str(exc))
             return self._mock.summarize(report_facts)

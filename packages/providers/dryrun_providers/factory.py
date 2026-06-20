@@ -23,6 +23,7 @@ from dryrun_providers.base import (
     StructureProvider,
     ViabilityProvider,
 )
+from dryrun_providers.config import is_strict
 
 logger = logging.getLogger("dryrun.providers")
 
@@ -39,7 +40,12 @@ def is_live() -> bool:
 
 
 def _select(name: str, live_factory: Callable[[], T], mock_factory: Callable[[], T]) -> T:
-    """Return live impl in live mode (falling back to mock on any failure), else mock."""
+    """Return live impl in live mode (falling back to mock on any failure), else mock.
+
+    In DRYRUN_STRICT mode a live construction failure (e.g. a missing key) RAISES
+    instead of falling back, so a misconfigured live run surfaces loudly rather than
+    silently serving mock data dressed up as real.
+    """
     if not is_live():
         return mock_factory()
     try:
@@ -47,6 +53,10 @@ def _select(name: str, live_factory: Callable[[], T], mock_factory: Callable[[],
         logger.info("Using LIVE provider for %s", name)
         return impl
     except Exception as exc:  # noqa: BLE001 — graceful degradation is the whole point
+        if is_strict():
+            raise RuntimeError(
+                f"DRYRUN_STRICT: live provider for {name} unavailable ({exc})"
+            ) from exc
         logger.warning(
             "Live provider for %s unavailable (%s). Falling back to mock.", name, exc
         )

@@ -1,8 +1,10 @@
 # DryRun — make targets.
 # The guaranteed-running mock base needs only: `make install` then `make demo`.
-
-DRYRUN_MODE ?= mock
-export DRYRUN_MODE
+#
+# Mode is driven by your `.env` (DRYRUN_MODE=mock|live), which the app loads on
+# startup; we deliberately do NOT export DRYRUN_MODE here so `.env` stays
+# authoritative for `make api` / `make web` / `make demo`. The `mock` / `live`
+# targets below set it inline only as an explicit one-off override.
 
 .DEFAULT_GOAL := help
 
@@ -41,7 +43,7 @@ api: ## Start the FastAPI gateway the frontend talks to (:8000)
 web-install: ## Install the frontend dependencies
 	cd apps/web && npm install
 
-web: ## Start the Next.js frontend in dev mode (mock mode)
+web: ## Start the Next.js frontend in dev mode (talks to the API; mode follows .env)
 	cd apps/web && npm install && npm run dev
 
 web-prod: ## Build + serve the frontend production build (snappy; use for demos)

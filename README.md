@@ -124,8 +124,9 @@ in-process cascade, so a demo never depends on all agents being live at once.
 
 ## Modes & configuration
 
-See [`.env.example`](.env.example) for every variable. Copy it to `.env` and set
-keys only if you want `DRYRUN_MODE=live`.
+**Full live setup — keys + ASI:One agent registration — is in [`SETUP.md`](SETUP.md).**
+See [`.env.example`](.env.example) for every variable. The app loads `.env`
+automatically on startup, so pasted keys take effect with no extra step.
 
 ```bash
 # live mode swaps in the real APIs without touching business logic; each provider
@@ -136,6 +137,18 @@ DRYRUN_MODE=live make demo
 Every external call is isolated in one small request/parse function per provider
 (`packages/providers/dryrun_providers/live/*.py`), so a changed upstream schema is
 a one-function fix — the interface and all callers stay untouched.
+
+**Honest provenance.** A live fallback is never shown as a real result: the report
+carries per-stage provenance (`meta.providers`: `live` / `fallback` / `mock` /
+`local`), surfaced as colored pills in the UI. Set `DRYRUN_STRICT=1` to make a live
+failure **raise** instead of falling back — the guarantee that a run is 100% real
+external data with nothing silently substituted.
+
+> **Note on the biology backends.** Evo 2 (NVIDIA NIM) is a *genomic (DNA)* model;
+> DryRun back-translates proteins to DNA before calling it (`live/_dna.py`). The
+> biology NIMs are on the `health.api.nvidia.com` host. These live paths are matched
+> to NVIDIA's documented schemas but pending verification against a real key — the
+> mock fallback keeps the app working if a schema has drifted. Details in `SETUP.md`.
 
 ---
 
