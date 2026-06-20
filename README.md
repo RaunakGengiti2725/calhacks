@@ -93,17 +93,32 @@ only on the few designs that survive the viability + fold filters.
 
 ## The agents
 
-*(Phase 4 — addresses filled in after Agentverse registration.)*
+Six specialist uAgents + an orchestrator, each implementing the Agentverse Chat
+Protocol so it is independently messageable and discoverable. Each passes the
+"standalone-useful to a stranger" test. Addresses below are deterministic (derived
+from fixed seeds), so they are stable across runs.
 
-| Agent | Standalone value | Live backend |
-|-------|------------------|--------------|
-| Design Generator | "propose N variants of this protein toward this goal" | Evo 2 NIM (generative) |
-| Sequence Fitness | "score how biologically plausible this sequence is" | Evo 2 NIM (likelihood) |
-| Fold Risk | "will this protein fold, and where is it structurally fragile?" | AlphaFold2 NIM |
-| Synthesis Cost | "what will this construct cost to manufacture?" | vendor pricing (model in core) |
-| Portfolio Optimizer | "given these scored options and my budget, what should I actually buy?" | none (real decision logic) |
-| Reporting | "turn an analysis into a shareable researcher-facing report" | none |
-| Orchestrator | the agent a researcher chats with; parses intent, drives the cascade | ASI:One |
+| Agent | Standalone value | Address (deterministic) | Live backend |
+|-------|------------------|-------------------------|--------------|
+| Orchestrator | chat to decide what to synthesize under a budget | `agent1qfq02ucduq4davsl0n9u9s8r854lm27f9gee3gfz88at9z25e4jm6zs8xnj` | ASI:One |
+| Design Generator | "propose N variants of this protein toward this goal" | `agent1qv2kw5n0qq2sde3jpq4ywc7f62tdq4lqnya59d79che7lx8mkrs8ju6yepn` | Evo 2 NIM (generative) |
+| Sequence Fitness | "score how biologically plausible this sequence is" | `agent1qt56g95rf3c4y439sur4uplc8rd0l5448vkljx0x932fyhzs7qnqv56nuuh` | Evo 2 NIM (likelihood) |
+| Fold Risk | "will this protein fold, and where is it structurally fragile?" | `agent1qwsysq6zqz4a2tvldgvhvup8tg4r8e3chx09p3cyyl7wk5ln000sx2tu5w6` | AlphaFold2 NIM |
+| Synthesis Cost | "what will this construct cost to manufacture?" | `agent1qvpqskgud5fp4n7utgq3unzx66xyc892ga2l2zhvrm8lsmv5fgtzqy9nxly` | vendor pricing (model in core) |
+| Portfolio Optimizer | "given these scored options and my budget, what should I actually buy?" | `agent1q2e56a258jjfwzdyute7y7ly362vxuv4dn3y4cjrqqfa0gmlxwwpq92vpec` | none (real decision logic) |
+| Reporting | "turn an analysis into a shareable researcher-facing report" | `agent1qfksdhz2yu9g6x6cjy42w04dt4tw6rrdaw8p0v3h2sj6e3a2f4mf5kq68w5` | none |
+
+```bash
+make install-agents   # adds the uagents framework
+make agents           # run all agents together in one Bureau (local, no network)
+# or run one specialist standalone (mailbox -> reachable from ASI:One):
+uv run --extra agents python -m dryrun_agents.run_specialist sequence_fitness
+uv run --extra agents python -m dryrun_agents.run_orchestrator
+```
+
+The orchestrator coordinates the specialists over the Chat Protocol
+(`send_and_receive`); if any specialist is unreachable it falls back to the
+in-process cascade, so a demo never depends on all agents being live at once.
 
 ---
 
@@ -133,5 +148,8 @@ keys only if you want `DRYRUN_MODE=live`.
 - [x] Phase 3 — FastAPI gateway + Next.js frontend (mock mode): summary metrics,
       cost-comparison chart, screening funnel, 3D structure + pLDDT confidence
       track, sequence-space scatter, candidate table
-- [ ] Phase 4 — cascade stages as uAgents (Chat Protocol)
-- [ ] Phase 5 — live providers, Agentverse registration & discovery
+- [x] Phase 4 — six specialist uAgents + orchestrator on the Chat Protocol,
+      coordinated via `send_and_receive` with an in-process fallback (verified
+      end to end in a local Bureau)
+- [ ] Phase 5 — live providers (ASI:One, Evo 2 NIM, AlphaFold2 NIM), Agentverse
+      registration & runtime discovery

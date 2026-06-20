@@ -39,8 +39,8 @@ web-install: ## Install the frontend dependencies
 web: ## Start the Next.js frontend (mock mode)
 	cd apps/web && npm install && npm run dev
 
-agents: ## Launch all uAgents locally (Phase 4/5)
-	uv run python -m dryrun_agents.launch
+agents: ## Launch all uAgents together in one Bureau (needs `make install-agents`)
+	uv run --extra agents python -m dryrun_agents.launch
 
 clean: ## Remove build/test caches
 	rm -rf .pytest_cache .ruff_cache .mypy_cache **/__pycache__ **/*.egg-info

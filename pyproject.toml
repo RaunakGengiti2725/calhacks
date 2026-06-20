@@ -50,7 +50,7 @@ packages = [
 "packages/providers/dryrun_providers/mock/assets/1crn.pdb" = "dryrun_providers/mock/assets/1crn.pdb"
 
 [tool.pytest.ini_options]
-testpaths = ["packages/core/tests", "packages/providers/tests"]
+testpaths = ["packages/core/tests", "packages/providers/tests", "packages/agents/tests"]
 addopts = "-q --import-mode=importlib"
 pythonpath = ["."]
 
