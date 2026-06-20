@@ -36,8 +36,11 @@ api: ## Start the FastAPI gateway the frontend talks to
 web-install: ## Install the frontend dependencies
 	cd apps/web && npm install
 
-web: ## Start the Next.js frontend (mock mode)
+web: ## Start the Next.js frontend in dev mode (mock mode)
 	cd apps/web && npm install && npm run dev
+
+web-prod: ## Build + serve the frontend production build (snappy; use for demos)
+	cd apps/web && npm install && npm run build && npm run start
 
 agents: ## Launch all uAgents together in one Bureau (needs `make install-agents`)
 	uv run --extra agents python -m dryrun_agents.launch
