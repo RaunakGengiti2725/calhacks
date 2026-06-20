@@ -10,6 +10,9 @@ the Agentverse-registered deployment, run agents individually with mailbox=True
 
 from __future__ import annotations
 
+import os
+import socket
+
 from uagents import Bureau
 
 from dryrun_agents.shared.agent_config import ORCHESTRATOR, SPECIALISTS
@@ -21,10 +24,26 @@ from dryrun_agents.shared.build_agent import (
 from dryrun_agents.shared.orchestrator import build_orchestrator
 
 
+def bureau_port() -> int:
+    return int(os.environ.get("DRYRUN_BUREAU_PORT", "8200"))
+
+
+def _ensure_port_free(port: int) -> None:
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
+        sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        try:
+            sock.bind(("0.0.0.0", port))
+        except OSError as exc:
+            raise SystemExit(
+                f"Port {port} is already in use (DRYRUN_BUREAU_PORT). "
+                f"Stop the other process or run `make stop`, then retry."
+            ) from exc
+
+
 def build_bureau(*, mailbox: bool = False) -> Bureau:
     specialists = build_all_specialists(mailbox=mailbox)
     orchestrator = build_orchestrator(specialist_addresses(), mailbox=mailbox)
-    bureau = Bureau()
+    bureau = Bureau(port=bureau_port())
     for agent in specialists.values():
         bureau.add(agent)
     bureau.add(orchestrator)
@@ -39,8 +58,10 @@ def print_addresses() -> None:
 
 
 def main() -> None:
+    port = bureau_port()
+    _ensure_port_free(port)
     print_addresses()
-    print("\nStarting DryRun Bureau — chat with the orchestrator above.\n")
+    print(f"\nStarting DryRun Bureau on :{port} — chat with the orchestrator above.\n")
     build_bureau().run()
 
 

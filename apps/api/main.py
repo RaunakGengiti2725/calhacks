@@ -13,6 +13,7 @@ from typing import Optional
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import HTMLResponse
 from pydantic import BaseModel
 
 from dryrun_agents.shared.cascade import run_cascade
@@ -40,6 +41,26 @@ class AnalyzeRequest(BaseModel):
     goal: Optional[str] = None
     budget: Optional[float] = None
     candidates: Optional[int] = None
+
+
+@app.get("/", include_in_schema=False, response_class=HTMLResponse)
+def root() -> str:
+    mode = get_mode()
+    return f"""<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="utf-8"><title>DryRun API</title></head>
+<body style="font-family:system-ui,sans-serif;max-width:40rem;margin:3rem auto;padding:0 1rem;line-height:1.5">
+  <h1>DryRun API</h1>
+  <p>Backend is running (<code>mode={mode}</code>). This port serves JSON only — not the report UI.</p>
+  <p><strong>Open the app:</strong> <a href="http://localhost:3000">http://localhost:3000</a>
+     (run <code>make web</code> in a second terminal if it is not up yet).</p>
+  <ul>
+    <li><a href="/docs">/docs</a> — interactive API docs</li>
+    <li><a href="/health">/health</a> — liveness check</li>
+    <li><a href="/api/demo">/api/demo</a> — full demo report (JSON)</li>
+  </ul>
+</body>
+</html>"""
 
 
 @app.get("/health")

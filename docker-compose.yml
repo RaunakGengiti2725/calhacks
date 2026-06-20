@@ -22,6 +22,7 @@ services:
       dockerfile: apps/api/Dockerfile
     environment:
       DRYRUN_MODE: ${DRYRUN_MODE:-mock}
+      DRYRUN_BUREAU_PORT: ${DRYRUN_BUREAU_PORT:-8200}
       ASI_ONE_API_KEY: ${ASI_ONE_API_KEY:-}
       NVIDIA_API_KEY: ${NVIDIA_API_KEY:-}
       AGENTVERSE_API_KEY: ${AGENTVERSE_API_KEY:-}
