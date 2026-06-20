@@ -157,8 +157,9 @@ class PortfolioComparison(BaseModel):
     optimized: Portfolio
     naive: Portfolio
     expected_successes_uplift: float  # optimized.expected_distinct - naive.expected_distinct
-    # Extra dollars the naive ordering would need to match DryRun's expected
-    # distinct successes (None if naive already matches or estimate unavailable).
+    # Total budget the naive (by-score) ordering would need to reach DryRun's
+    # expected distinct successes (None if unreachable). Compare to the DryRun
+    # budget for the "naive needs $X to match our $Y" callout.
     dollars_naive_needs_to_match: Optional[float] = None
 
 

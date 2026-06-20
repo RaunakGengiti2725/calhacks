@@ -71,10 +71,13 @@ apps/
 It is *not* "rank by score, take top N." It solves a budget-constrained,
 diversity-aware selection problem with a **submodular coverage objective** and a
 cost-aware **greedy** algorithm. Budget-constrained submodular maximization is
-NP-hard; the greedy approach carries a provable **(1 − 1/e) ≈ 0.63** approximation
-guarantee (cardinality case; the budget variant is guarded with the
-best-single-affordable element to keep the bound honest). `naive_topn_select` is
-provided alongside purely so the UI can show the contrast.
+NP-hard. The honest guarantees: plain greedy gives **(1 − 1/e) ≈ 0.63** under a
+*cardinality* constraint; under a *budget* constraint, `max(greedy, best single)`
+gives only **(1 − 1/√e) ≈ 0.39**, so to recover the full **(1 − 1/e) ≈ 0.63** the
+solver seeds the greedy from every feasible subset of size ≤ 3 (Sviridenko /
+Khuller-Moss-Naor partial enumeration) — cheap here because the optimizer runs
+only on the few designs that survive the viability + fold filters.
+`naive_topn_select` is provided alongside purely so the UI can show the contrast.
 
 ---
 

@@ -83,6 +83,28 @@ def test_budget_guard_prefers_best_single_when_greedy_starves() -> None:
     assert portfolio.expected_distinct_successes > 0.9
 
 
+def test_matches_brute_force_optimum_on_small_pool() -> None:
+    """Partial enumeration must find the true optimum when the pool is small."""
+    from itertools import combinations
+
+    from dryrun_core.optimizer import _arrays, coverage_value
+
+    designs = _clustered_scenario()
+    budget = 300.0
+    p, cost, sim = _arrays(designs)
+
+    # Brute force: best coverage over every budget-feasible subset.
+    n = len(designs)
+    best = 0.0
+    for r in range(n + 1):
+        for combo in combinations(range(n), r):
+            if sum(cost[i] for i in combo) <= budget + 1e-9:
+                best = max(best, coverage_value(list(combo), p, sim))
+
+    got = submodular_greedy_select(designs, budget).expected_distinct_successes
+    assert abs(got - best) < 1e-9  # greedy + size-3 enumeration is optimal here
+
+
 def test_coverage_is_monotone_and_submodular() -> None:
     # Two identical points (sim = 1). Marginal gain must diminish.
     p = np.array([0.5, 0.5])
