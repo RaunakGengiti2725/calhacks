@@ -1,6 +1,7 @@
-# DryRun — bring up the API gateway (+ all uAgents in Phase 5).
-# The mock demo does NOT need Docker; this is a convenience for running the full
-# multi-agent stack at once. Fleshed out in Phase 5.
+# DryRun — bring up the API gateway and all uAgents at once.
+# The mock demo does NOT need Docker (`make demo` / `make web` suffice); this is a
+# convenience for running the full multi-agent stack. Defaults to mock mode, so it
+# runs with no credentials; set DRYRUN_MODE=live + the documented keys for live.
 
 services:
   api:
@@ -9,8 +10,33 @@ services:
       dockerfile: apps/api/Dockerfile
     environment:
       DRYRUN_MODE: ${DRYRUN_MODE:-mock}
+      ASI_ONE_API_KEY: ${ASI_ONE_API_KEY:-}
+      NVIDIA_API_KEY: ${NVIDIA_API_KEY:-}
     ports:
       - "8000:8000"
-    command: uvicorn apps.api.main:app --host 0.0.0.0 --port 8000
-# Phase 5: one service per uAgent (design_generator, sequence_fitness, fold_risk,
-# synthesis_cost, portfolio_optimizer, reporting, orchestrator), each with mailbox.
+    command: uv run uvicorn apps.api.main:app --host 0.0.0.0 --port 8000
+
+  agents:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+    environment:
+      DRYRUN_MODE: ${DRYRUN_MODE:-mock}
+      ASI_ONE_API_KEY: ${ASI_ONE_API_KEY:-}
+      NVIDIA_API_KEY: ${NVIDIA_API_KEY:-}
+      AGENTVERSE_API_KEY: ${AGENTVERSE_API_KEY:-}
+    # All seven agents in one Bureau (orchestrator + six specialists).
+    command: uv run --extra agents python -m dryrun_agents.launch
+
+  web:
+    image: node:20-slim
+    working_dir: /app/apps/web
+    volumes:
+      - .:/app
+    environment:
+      NEXT_PUBLIC_DRYRUN_API_URL: http://localhost:8000
+    ports:
+      - "3000:3000"
+    command: sh -c "npm install && npm run dev"
+    depends_on:
+      - api

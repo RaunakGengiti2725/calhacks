@@ -127,6 +127,16 @@ in-process cascade, so a demo never depends on all agents being live at once.
 See [`.env.example`](.env.example) for every variable. Copy it to `.env` and set
 keys only if you want `DRYRUN_MODE=live`.
 
+```bash
+# live mode swaps in the real APIs without touching business logic; each provider
+# falls back to mock on any error or missing key, so this never hard-fails:
+DRYRUN_MODE=live make demo
+```
+
+Every external call is isolated in one small request/parse function per provider
+(`packages/providers/dryrun_providers/live/*.py`), so a changed upstream schema is
+a one-function fix — the interface and all callers stay untouched.
+
 ---
 
 ## Roadmap (Phase 6)
@@ -151,5 +161,10 @@ keys only if you want `DRYRUN_MODE=live`.
 - [x] Phase 4 — six specialist uAgents + orchestrator on the Chat Protocol,
       coordinated via `send_and_receive` with an in-process fallback (verified
       end to end in a local Bureau)
-- [ ] Phase 5 — live providers (ASI:One, Evo 2 NIM, AlphaFold2 NIM), Agentverse
-      registration & runtime discovery
+- [x] Phase 5 — live providers (ASI:One, Evo 2 NIM, AlphaFold2 NIM) behind the
+      same interfaces, each with an isolated request/parse function and graceful
+      per-call mock fallback; Agentverse mailbox registration + runtime discovery
+      (keyword search with config fallback); docker-compose for the full stack.
+      *Offline-verified: every provider degrades to mock with no keys and the demo
+      is unaffected. The real ASI:One / NIM / Agentverse round-trips need
+      credentials and are pending live verification.*

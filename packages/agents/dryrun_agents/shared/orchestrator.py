@@ -21,8 +21,8 @@ from uagents_core.contrib.protocols.chat import (
 
 from dryrun_agents.shared import stages
 from dryrun_agents.shared.agent_config import ORCHESTRATOR
-from dryrun_agents.shared.build_agent import specialist_addresses
 from dryrun_agents.shared.cascade import run_cascade
+from dryrun_agents.shared.discovery import resolve_specialist_addresses
 from dryrun_agents.shared.inputs import resolve_inputs
 from dryrun_agents.shared.protocol import acknowledge, chat_text, extract_text
 from dryrun_core.models import (
@@ -103,9 +103,9 @@ async def orchestrate(
 
 
 def build_orchestrator(address_map: dict[str, str] | None = None, *, mailbox: bool = False) -> Agent:
-    """Construct the orchestrator agent. `address_map` defaults to the deterministic
-    specialist addresses (config fallback); Phase 5 swaps in Agentverse discovery."""
-    addresses = address_map or specialist_addresses()
+    """Construct the orchestrator agent. `address_map` defaults to runtime discovery
+    (Agentverse keyword search) with a deterministic-address config fallback."""
+    addresses = address_map or resolve_specialist_addresses()
 
     agent = Agent(
         name="dryrun-orchestrator",
